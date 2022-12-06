@@ -66,11 +66,32 @@ const removeUser = (socketId) => {
 // socket connection here
 
 io.on('connection', (socket) => {
-    console.log('Connection established', socket.id);
-    socket.on('join_room', (room) => {
-        socket.join(room);
-        // console.info(`User : ${socket.id} joined in this ${room}`);
+    socket.emit('me', socket.id);
+    // video calling
+    socket.on('callUser', ({ userToCall, signalData, from, name }) => {
+        const user = getUser(userToCall);
+        if (user && user.socketId) {
+            // io.to(user.socketId).emit('receivedMessage', info);
+            io.to(user.socketId).emit('callUser', {
+                signal: signalData,
+                from,
+                name,
+            });
+        }
     });
+    socket.on('answerCall', (data) => {
+        const user = getUser(data.to);
+        if (user && user.socketId) {
+            // io.to(user.socketId).emit('receivedMessage', info);
+            io.to(user.socketId).emit('callAccepted', data.signal);
+        }
+    });
+    // video calling ended
+
+    // socket.on('join_room', (room) => {
+    //     socket.join(room);
+    //     // console.info(`User : ${socket.id} joined in this ${room}`);
+    // });
     socket.on('typing', (data) => {
         if (data.removeTyping) socket.broadcast.emit('typingRemove', data.id);
         else {
@@ -86,12 +107,25 @@ io.on('connection', (socket) => {
     });
 
     socket.on('add-user', (userInfo) => {
-        console.log('[Add user Hit]', userInfo.name, socket.id);
         addUser(userInfo, socket.id);
         io.emit('get-users', users);
     });
+    // socket.on('callUser', (data) => {
+    //     console.log('Calling', data.userToCall);
+
+    //     io.to(data.userToCall).emit('callUser', {
+    //         signal: data.signalData,
+    //         from: data.from,
+    //         name: data.name,
+    //     });
+    // });
+    // socket.on('answerCall', (data) => {
+    //     console.log('Call answerCall', data.to);
+    //     io.to(data.to).emit('callAccepted', data.signal);
+    // });
+
     socket.on('disconnect', () => {
-        console.info(`User disconnect : ${socket.id}`);
+        // console.info(`User disconnect : ${socket.id}`);
         const filterUsers = removeUser(socket.id);
         //Sends the list of users to the client
         io.emit('get-users', filterUsers);
